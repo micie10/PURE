@@ -505,6 +505,31 @@ function escapeAttr(s){ return (s||"").replace(/"/g,"&quot;"); }
 function escapeHtml(s){ return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
 
 /* ======================= gist sync ======================= */
+/* 방문자 자동 불러오기용 "대표 Gist ID".
+   1) 관리자 모드로 로그인 → GitHub Gist 동기화 → 토큰 입력 후 [Gist에 저장] 클릭 (ID란은 비워두면 새로 생성됩니다)
+   2) 저장 성공 후 다시 [Gist 동기화] 창을 열면 ID란에 생성된 Gist ID가 채워져 있습니다. 그 값을 아래에 붙여넣으세요.
+   3) 이 파일을 다시 GitHub에 커밋/push 하면, 이후 모든 방문자가 그 Gist 내용을 자동으로 보게 됩니다. */
+const DEFAULT_GIST_ID = "a699295cad32957d6067b315fd54ddad";
+async function publicAutoLoad(){
+  if(!DEFAULT_GIST_ID) return; // 아직 위 ID를 채워넣지 않았으면 건너뜀 (기본/로컬 데이터 그대로 표시)
+  try{
+    const res = await fetch("https://api.github.com/gists/" + DEFAULT_GIST_ID, { headers:{ "Accept":"application/vnd.github+json" } });
+    if(!res.ok) return; // 실패 시 조용히 기본/로컬 데이터 유지
+    const json = await res.json();
+    const file = json.files && json.files["data.json"];
+    if(!file) return;
+    let content = file.content;
+    if(file.truncated && file.raw_url){
+      const raw = await fetch(file.raw_url);
+      if(!raw.ok) return;
+      content = await raw.text();
+    }
+    const loaded = JSON.parse(content);
+    loaded.gist = state.gist; // 방문자 화면에는 관리자 토큰/ID를 넣지 않고 로컬 값 유지
+    state = loaded;
+    renderAll();
+  }catch(e){ /* 네트워크 오류 등 - 조용히 무시하고 기본/로컬 데이터로 계속 표시 */ }
+}
 function describeGistError(status, json){
   if(status === 401) return "토큰이 잘못됐거나 만료됐어요";
   if(status === 403){
@@ -1208,6 +1233,9 @@ document.addEventListener("dragstart", function(e){ if(!isAdmin && e.target.tagN
 
 /* ======================= init ======================= */
 renderAll();
+// 일반 방문자는 접속 시 대표 Gist의 최신 데이터를 자동으로 불러옵니다.
+// 관리자 로그인 상태에서는 편집 중 자동 백업 지연으로 최신 로컬 수정사항이 덮어써질 수 있어 건너뜁니다.
+if(!isAdmin) publicAutoLoad();
 </script>
 </body>
 </html>
