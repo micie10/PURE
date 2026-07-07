@@ -127,8 +127,7 @@ body.is-admin .cover:active{ cursor:grabbing; }
 .post-list-item .type-tag{ font-size:10px; font-weight:700; color:var(--accent); text-transform:uppercase; }
 .post-list-item .ptitle{ font-family:'Baloo 2',sans-serif; font-weight:700; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .post-list-item .pdate{ font-size:11px; color:var(--ink-soft); flex:none; }
-.post-list-item.secret .body, .post-list-item.secret .thumb{ filter:blur(7px); }
-.post-list-item.secret::after{ content:"🔒 비밀글"; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-family:'Baloo 2',sans-serif; font-weight:700; color:var(--ink); background:rgba(255,255,255,.5); }
+.post-list-item .ptitle .lock-ic{ margin-right:4px; }
 .post-list-item .card-admin-btns{ display:flex; gap:4px; flex:none; z-index:2; }
 .icon-btn{ width:24px; height:24px; border-radius:50%; border:none; background:rgba(255,255,255,.85); font-size:11px; display:flex; align-items:center; justify-content:center; }
 
@@ -802,7 +801,7 @@ function renderPostGrid(){
     row.className = "post-list-item" + (isSecretLocked ? " secret" : "");
     row.innerHTML =
       '<div class="thumb">'+(p.images[0]?('<img src="'+escapeAttr(p.images[0])+'">'):"")+'</div>' +
-      '<div class="body"><div class="type-tag">'+p.type+'</div><div class="ptitle">'+escapeHtml(p.title)+'</div></div>' +
+      '<div class="body"><div class="type-tag">'+p.type+'</div><div class="ptitle">'+(p.secret?'<span class="lock-ic">🔒</span>':'')+escapeHtml(p.title)+'</div></div>' +
       '<div class="pdate">'+p.date+'</div>' +
       '<div class="card-admin-btns admin-only"><button class="icon-btn" data-act="edit">✎</button><button class="icon-btn" data-act="del">✕</button></div>';
     row.addEventListener("click", (e) => {
