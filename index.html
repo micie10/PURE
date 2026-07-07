@@ -28,8 +28,8 @@ body{
   transition:background .4s ease; position:relative; overflow-x:hidden;
 }
 h1,h2,h3{ font-family:'Baloo 2',sans-serif; margin:0; }
-img{ user-select:none; -webkit-user-drag:none; }
-body.is-admin img{ -webkit-user-drag:auto; user-select:auto; }
+img{ user-select:none; -webkit-user-drag:none; -webkit-touch-callout:none; }
+body.is-admin img{ -webkit-user-drag:auto; user-select:auto; -webkit-touch-callout:default; }
 button{ font-family:'Quicksand',sans-serif; cursor:pointer; }
 .admin-only{ display:none !important; }
 body.is-admin .admin-only{ display:inline-flex !important; }
@@ -1126,7 +1126,7 @@ function openLightbox(url){
 }
 
 /* ======================= PROFILE ======================= */
-const SECTION_LABELS = {photo:"", quote:"명대사", info:"기본 정보", appearance:"외모", personality:"성격", abilities:"특징", backstory:"능력", likes:"좋아하는 것", dislikes:"싫어하는 것"};
+const SECTION_LABELS = {photo:"", quote:"갑판 위에서 우리는...", info:"기본 정보", appearance:"외모", personality:"성격", abilities:"특징", backstory:"능력", likes:"좋아하는 것", dislikes:"싫어하는 것"};
 function renderProfile(main){
   const wrap = document.createElement("div");
   wrap.innerHTML = '<div class="page-title">👥 PROFILE</div><div class="profile-wrap" id="profileWrap"></div>';
