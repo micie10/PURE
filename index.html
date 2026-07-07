@@ -31,8 +31,8 @@ h1,h2,h3{ font-family:'Baloo 2',sans-serif; margin:0; }
 img{ user-select:none; -webkit-user-drag:none; }
 body.is-admin img{ -webkit-user-drag:auto; user-select:auto; }
 button{ font-family:'Quicksand',sans-serif; cursor:pointer; }
-.admin-only{ display:none; }
-body.is-admin .admin-only{ display:inline-flex; }
+.admin-only{ display:none !important; }
+body.is-admin .admin-only{ display:inline-flex !important; }
 [contenteditable="true"]{ cursor:text; }
 body.is-admin [data-editable="true"]:hover{ outline:2px dashed var(--ring); outline-offset:3px; border-radius:6px; }
 
