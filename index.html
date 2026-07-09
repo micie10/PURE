@@ -113,6 +113,23 @@ footer{ margin-top:26px; font-size:12px; color:var(--ink-soft); font-weight:600;
 body.is-admin .cover{ cursor:grab; }
 body.is-admin .cover:active{ cursor:grabbing; }
 
+/* ---------- stickers ---------- */
+.sticker{ position:absolute; z-index:2; pointer-events:none; touch-action:none; }
+.sticker img{ display:block; width:100%; height:100%; user-select:none; pointer-events:none; -webkit-user-drag:none; }
+body.is-admin .sticker{ pointer-events:auto; cursor:move; }
+body.is-admin .sticker.active{ outline:2px dashed rgba(255,255,255,.85); outline-offset:3px; }
+.sticker-handle{ display:none; position:absolute; width:24px; height:24px; border-radius:50%; background:var(--accent); color:#fff; align-items:center; justify-content:center; font-size:12px; z-index:6; box-shadow:var(--shadow); }
+body.is-admin .sticker.active .sticker-handle{ display:flex; }
+.sticker-handle.rotate{ top:-32px; left:50%; transform:translate(-50%,0); cursor:grab; }
+.sticker-handle.resize{ bottom:-11px; right:-11px; cursor:nwse-resize; }
+.sticker-handle.delete{ top:-11px; right:-11px; background:#e0607a; cursor:pointer; }
+.sticker-manager-list{ display:flex; flex-direction:column; gap:8px; max-height:260px; overflow-y:auto; margin-bottom:12px; }
+.sticker-manager-row{ display:flex; align-items:center; gap:10px; background:var(--accent-soft); border-radius:12px; padding:8px 10px; }
+.sticker-manager-row img{ width:40px; height:40px; object-fit:contain; border-radius:8px; background:#fff; flex:none; }
+.sticker-manager-row .smr-url{ flex:1; font-size:11px; color:var(--ink-soft); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.sticker-manager-row button{ font-family:'Baloo 2',sans-serif; font-weight:700; font-size:11px; border:none; border-radius:999px; padding:5px 10px; background:#e0607a; color:#fff; flex:none; }
+.sticker-manager-empty{ font-size:12px; color:var(--ink-soft); text-align:center; padding:14px 0; }
+
 
 /* ---------- LOG ---------- */
 .log-toolbar{ display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-bottom:16px; justify-content:flex-end; }
@@ -280,7 +297,8 @@ function getSamples(){
       cover:{image:"", scale:100, posX:50, posY:50, title:"우리의 기록", subtitle:"함께한 순간들을 담아요"},
       dday:{date: new Date().toISOString().slice(0,10), label:"우리가 함께한 지"},
       pinned:[],
-      galleryImages:[]
+      galleryImages:[],
+      stickers:[]
     },
     categories:[{id:"c-log",name:"LOG"},{id:"c-photo",name:"PHOTO"},{id:"c-daily",name:"DAILY"}],
     posts:[
@@ -321,6 +339,7 @@ if(state.profiles){
   });
 }
 if(state.site && !state.site.galleryImages) state.site.galleryImages = [];
+if(state.site && !state.site.stickers) state.site.stickers = [];
 function load(){
   try{
     const raw = localStorage.getItem(STORE_KEY);
@@ -470,12 +489,18 @@ function openSettingsModal(){
     '<span class="field-label">바깥 배경 블러 (0~20)</span><input id="stOuterBlur" type="range" min="0" max="20" value="'+state.site.outerBg.blur+'">' +
     '<span class="field-label">관리자 비밀번호 변경</span><input id="stAdminCode" type="password" placeholder="새 비밀번호 (선택)">' +
     '<hr style="border:none;border-top:2px solid var(--ring); margin:14px 0;">' +
+    '<span class="field-label">커버 스티커</span>' +
+    '<div class="modal-actions" style="justify-content:flex-start; margin-top:0; margin-bottom:14px;"><button class="btn ghost" id="openStickerMgrBtn">🎀 스티커 관리</button></div>' +
+    '<hr style="border:none;border-top:2px solid var(--ring); margin:14px 0;">' +
     '<span class="field-label">GitHub Gist 동기화 (선택)</span>' +
     '<input id="gistToken" placeholder="Personal Access Token (gist 권한)" value="'+escapeAttr(state.gist.token)+'">' +
     '<input id="gistId" placeholder="Gist ID (비워두면 새로 생성)" value="'+escapeAttr(state.gist.id)+'">' +
     '<div class="modal-actions"><button class="btn ghost" id="gistLoadBtn">Gist에서 불러오기</button><button class="btn ghost" id="gistSaveBtn">Gist에 저장</button></div>' +
     '<div class="modal-actions"><button class="btn" id="saveSettingsBtn">저장</button></div>'
   );
+  backdrop.querySelector("#openStickerMgrBtn").addEventListener("click", () => {
+    backdrop.remove(); openStickerManagerModal(state.site);
+  });
   backdrop.querySelector("#gistLoadBtn").addEventListener("click", async () => {
     state.gist.token = backdrop.querySelector("#gistToken").value.trim();
     state.gist.id = backdrop.querySelector("#gistId").value.trim();
@@ -608,6 +633,7 @@ function renderHome(main){
     '<div class="cover" id="coverBox">' +
       '<img class="cover-img" id="coverImg" src="'+escapeAttr(s.cover.image)+'" style="transform:scale('+(s.cover.scale/100)+'); object-position:'+s.cover.posX+'% '+s.cover.posY+'%;">' +
       '<div class="cover-overlay"></div>' +
+      stickersHtml(s) +
       '<div class="dday-badge" id="ddayBadge"></div>' +
       '<div class="cover-text"><div class="ctitle" id="coverTitle" data-editable="true">'+escapeHtml(s.cover.title)+'</div><div class="csub" id="coverSub" data-editable="true">'+escapeHtml(s.cover.subtitle)+'</div></div>' +
       '<button class="photo-edit-btn admin-only" id="coverEditBtn">이미지 변경</button>' +
@@ -622,6 +648,7 @@ function renderHome(main){
 
   if(isAdmin){
     setupCoverInteractions(s, wrap);
+    setupStickerInteractions(s, wrap);
   }
 }
 /* ---- cover: click-to-insert(Imgur link) / wheel-zoom / drag-pan ---- */
@@ -677,6 +704,170 @@ function setupCoverInteractions(s, wrap){
     clearTimeout(wheelTimer);
     wheelTimer = setTimeout(persist, 400);
   }, { passive:false });
+}
+
+/* ---- stickers: admin-only add/move/resize/rotate, visitors just view ---- */
+function stickersHtml(s){
+  return (s.stickers||[]).map(st =>
+    '<div class="sticker" data-id="'+st.id+'" style="left:'+st.x+'%; top:'+st.y+'%; width:'+st.width+'px; height:'+st.height+'px; transform:translate(-50%,-50%) rotate('+st.rotation+'deg);">' +
+      '<img src="'+escapeAttr(st.url)+'" draggable="false" alt="sticker">' +
+      '<div class="sticker-handle rotate admin-only" title="회전">↻</div>' +
+      '<div class="sticker-handle resize admin-only" title="크기">⤡</div>' +
+      '<div class="sticker-handle delete admin-only" title="삭제">✕</div>' +
+    '</div>'
+  ).join("");
+}
+function openStickerAddModal(s, onDone){
+  if(!requireAdmin()) return;
+  const backdrop = modalOpen(
+    '<button class="close-x">✕</button><h3>🎀 스티커 추가</h3>' +
+    '<p style="font-size:12px; color:var(--ink-soft); margin:-6px 0 12px; line-height:1.5;">imgur.com에 스티커 이미지를 업로드한 뒤, 직접 링크(예: https://i.imgur.com/xxxxx.png)를 붙여넣어주세요.</p>' +
+    '<input id="stickerUrlInput" placeholder="https://i.imgur.com/...">' +
+    '<div class="modal-actions"><a class="btn ghost small" href="https://imgur.com/upload" target="_blank" rel="noopener">Imgur 열기 ↗</a><button class="btn" id="stickerAddApplyBtn">추가</button></div>'
+  );
+  backdrop.querySelector("#stickerAddApplyBtn").addEventListener("click", () => {
+    const url = backdrop.querySelector("#stickerUrlInput").value.trim();
+    if(!url){ toast("이미지 링크를 입력해주세요"); return; }
+    const tmp = new Image();
+    tmp.onload = () => {
+      const maxDim = 120;
+      const ratio = tmp.naturalWidth && tmp.naturalHeight ? tmp.naturalWidth/tmp.naturalHeight : 1;
+      const width = ratio >= 1 ? maxDim : Math.round(maxDim*ratio);
+      const height = ratio >= 1 ? Math.round(maxDim/ratio) : maxDim;
+      finishAdd(width, height);
+    };
+    tmp.onerror = () => finishAdd(100, 100);
+    tmp.src = url;
+    function finishAdd(width, height){
+      if(!s.stickers) s.stickers = [];
+      s.stickers.push({ id:"st"+Date.now()+Math.floor(Math.random()*1000), url, x:50, y:50, width, height, rotation:0 });
+      persist(); backdrop.remove(); renderAll(); if(onDone) onDone();
+    }
+  });
+}
+function openStickerManagerModal(s){
+  if(!requireAdmin()) return;
+  function render(backdrop){
+    const list = backdrop.querySelector("#stickerMgrList");
+    const items = s.stickers||[];
+    list.innerHTML = items.length ? items.map(st =>
+      '<div class="sticker-manager-row" data-id="'+st.id+'"><img src="'+escapeAttr(st.url)+'" alt="sticker"><span class="smr-url">'+escapeHtml(st.url)+'</span><button class="smr-del">삭제</button></div>'
+    ).join("") : '<div class="sticker-manager-empty">아직 추가한 스티커가 없어요</div>';
+    list.querySelectorAll(".smr-del").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const id = btn.closest(".sticker-manager-row").dataset.id;
+        s.stickers = (s.stickers||[]).filter(x => x.id !== id);
+        persist(); renderAll(); render(backdrop);
+      });
+    });
+  }
+  const backdrop = modalOpen(
+    '<button class="close-x">✕</button><h3>🎀 스티커 관리</h3>' +
+    '<p style="font-size:12px; color:var(--ink-soft); margin:-6px 0 12px; line-height:1.5;">커버 이미지 위에 붙일 스티커를 관리해요. 추가한 스티커는 커버에서 직접 드래그로 이동, 모서리 핸들로 크기·회전을 조절할 수 있어요. 방문자에게는 조절 도구 없이 스티커만 보여요.</p>' +
+    '<div class="sticker-manager-list" id="stickerMgrList"></div>' +
+    '<div class="modal-actions"><button class="btn" id="stickerMgrAddBtn">스티커 추가</button></div>'
+  );
+  render(backdrop);
+  backdrop.querySelector("#stickerMgrAddBtn").addEventListener("click", () => {
+    openStickerAddModal(s, () => {});
+  });
+}
+function setupStickerInteractions(s, wrap){
+  if(!isAdmin) return;
+  const cover = wrap.querySelector("#coverBox");
+  let activeEl = null;
+
+  function deselectAll(){
+    wrap.querySelectorAll(".sticker.active").forEach(el => el.classList.remove("active"));
+    activeEl = null;
+  }
+  cover.addEventListener("mousedown", (e) => {
+    if(!e.target.closest(".sticker")) deselectAll();
+  });
+
+  wrap.querySelectorAll(".sticker").forEach(el => {
+    const id = el.dataset.id;
+    const getSt = () => (s.stickers||[]).find(x => x.id === id);
+
+    el.addEventListener("click", (e) => {
+      e.stopPropagation();
+      wrap.querySelectorAll(".sticker.active").forEach(o => { if(o!==el) o.classList.remove("active"); });
+      el.classList.add("active"); activeEl = el;
+    });
+
+    el.querySelector(".delete").addEventListener("click", (e) => {
+      e.stopPropagation();
+      s.stickers = (s.stickers||[]).filter(x => x.id !== id);
+      persist(); renderAll();
+    });
+
+    // move
+    el.addEventListener("mousedown", (e) => {
+      if(e.target.closest(".sticker-handle")) return;
+      e.stopPropagation();
+      const st = getSt(); if(!st) return;
+      el.classList.add("active"); activeEl = el;
+      let lastX = e.clientX, lastY = e.clientY;
+      function onMove(ev){
+        const rect = cover.getBoundingClientRect();
+        const dx = ev.clientX - lastX, dy = ev.clientY - lastY;
+        st.x = Math.max(0, Math.min(100, st.x + (dx/rect.width)*100));
+        st.y = Math.max(0, Math.min(100, st.y + (dy/rect.height)*100));
+        el.style.left = st.x+"%"; el.style.top = st.y+"%";
+        lastX = ev.clientX; lastY = ev.clientY;
+      }
+      function onUp(){
+        document.removeEventListener("mousemove", onMove);
+        document.removeEventListener("mouseup", onUp);
+        persist();
+      }
+      document.addEventListener("mousemove", onMove);
+      document.addEventListener("mouseup", onUp);
+    });
+
+    // resize
+    el.querySelector(".resize").addEventListener("mousedown", (e) => {
+      e.stopPropagation(); e.preventDefault();
+      const st = getSt(); if(!st) return;
+      const ratio = st.width / st.height;
+      const startX = e.clientX, startW = st.width;
+      function onMove(ev){
+        const delta = (ev.clientX - startX) * 2;
+        const newW = Math.max(24, Math.min(500, startW + delta));
+        st.width = newW; st.height = Math.round(newW/ratio);
+        el.style.width = st.width+"px"; el.style.height = st.height+"px";
+      }
+      function onUp(){
+        document.removeEventListener("mousemove", onMove);
+        document.removeEventListener("mouseup", onUp);
+        persist();
+      }
+      document.addEventListener("mousemove", onMove);
+      document.addEventListener("mouseup", onUp);
+    });
+
+    // rotate
+    el.querySelector(".rotate").addEventListener("mousedown", (e) => {
+      e.stopPropagation(); e.preventDefault();
+      const st = getSt(); if(!st) return;
+      function angleFromCenter(ev){
+        const rect = el.getBoundingClientRect();
+        const cx = rect.left + rect.width/2, cy = rect.top + rect.height/2;
+        return Math.atan2(ev.clientY - cy, ev.clientX - cx) * (180/Math.PI) + 90;
+      }
+      function onMove(ev){
+        st.rotation = Math.round(angleFromCenter(ev));
+        el.style.transform = "translate(-50%,-50%) rotate("+st.rotation+"deg)";
+      }
+      function onUp(){
+        document.removeEventListener("mousemove", onMove);
+        document.removeEventListener("mouseup", onUp);
+        persist();
+      }
+      document.addEventListener("mousemove", onMove);
+      document.addEventListener("mouseup", onUp);
+    });
+  });
 }
 
 /* ---- profile photo: click-to-insert(Imgur link) / wheel-zoom / drag-pan ---- */
